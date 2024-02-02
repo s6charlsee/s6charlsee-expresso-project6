@@ -1,0 +1,126 @@
+NAME: web
+LAST DEPLOYED: Wed Jan 31 08:55:25 2024
+NAMESPACE: appiah
+STATUS: pending-install
+REVISION: 1
+TEST SUITE: None
+HOOKS:
+MANIFEST:
+---
+# Source: s6charlsee/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: charlsee-shop-web
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      s6charlsee: expresso-shop-web
+---
+# Source: s6charlsee/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: charlsee-shop-web
+  labels:
+    s6charlsee: expresso-shop-web
+---
+# Source: s6charlsee/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: espresso-shop-web
+  
+type: Opaque
+data:
+ authKey: QXBwaWFo
+ password: Y2hhcmxzZWU=
+---
+# Source: s6charlsee/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: charlsee-shop-web
+  labels:
+    s6charlsee: expresso-shop-web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      s6charlsee: expresso-shop-web
+  template:
+    metadata:
+      labels:
+        s6charlsee: expresso-shop-web
+        version: v1
+    spec:
+      serviceAccountName: charlsee-shop-web
+      securityContext:
+        {}
+      containers:
+        - name: s6charlsee
+          securityContext:
+            {}
+          image: hossambarakat/espresso-shop-web
+          imagePullPolicy: IfNotPresent
+          envFrom:
+          - secretRef:
+              name: espresso-shop-web
+          env:
+            - name: ProductCatalogUrl
+              value: http://espresso-shop-product-catalog-svc:8091
+            - name: ReviewsUrl
+              value: http://espresso-shop-reviews-svc:8092
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+        #livenessProbe:
+        #  httpGet:
+        #    path: /
+        #    port: http
+        #readinessProbe:
+        #  httpGet:
+        #    path: /
+        #    port: http
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+
+  strategy:
+   type: RollingUpdate
+   rollingUpdate:
+     maxUnavailable: 1
+---
+# Source: s6charlsee/templates/hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: charlsee-shop-web
+  labels:
+    s6charlsee: expresso-shop-web
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: charlsee-shop-web
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+
+NOTES:
+1. Get the application URL by running these commands:
+  export NODE_PORT=$(kubectl get --namespace appiah -o jsonpath="{.spec.ports[0].nodePort}" services web-s6charlsee)
+  export NODE_IP=$(kubectl get nodes --namespace appiah -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT

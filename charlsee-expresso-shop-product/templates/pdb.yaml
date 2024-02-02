@@ -1,0 +1,9 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Values.name }}
+spec:
+  minAvailable: {{ .Values.spec.minAvailable }}
+  selector:
+    matchLabels:
+      s6charlsee: {{ .Values.labels.s6charlsee }}
